@@ -1,0 +1,186 @@
+Using solver 'cvxopt'
+Solving for 5 variables.
+Solving took 0.0364 seconds.
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+<ipython-input-1-fc26197660ee> in <module>
+     42 sol = M.solve()
+     43
+---> 44 sol.summary()
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/solution_array.py in summary(self, showvars, ntopsenss, **kwargs)
+    584         senss_tables.append("tightest constraints")
+    585         senss_str = self.table(showvars, senss_tables, nvars=ntopsenss,
+--> 586                                **kwargs)
+    587         if senss_str:
+    588             out += "\n" + senss_str
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/solution_array.py in table(self, showvars, tables, **kwargs)
+    639                 strs += [""]
+    640             elif table in TABLEFNS:
+--> 641                 strs += TABLEFNS[table](self, showvars, **kwargs)
+    642             elif table in self:
+    643                 data = self[table]
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/solution_array.py in tight_table(self, _, ntightconstrs, tight_senss, **kwargs)
+     73     data = [((-float("%+6.2g" % c.relax_sensitivity), str(c)),
+     74              "%+6.2g" % c.relax_sensitivity, c)
+---> 75             for c in self.model.flat() if c.relax_sensitivity >= tight_senss]
+     76     if not data:
+     77         lines = ["No constraints had a sensitivity above %+5.1g."
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/solution_array.py in <listcomp>(.0)
+     73     data = [((-float("%+6.2g" % c.relax_sensitivity), str(c)),
+     74              "%+6.2g" % c.relax_sensitivity, c)
+---> 75             for c in self.model.flat() if c.relax_sensitivity >= tight_senss]
+     76     if not data:
+     77         lines = ["No constraints had a sensitivity above %+5.1g."
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in __str__(self)
+    165     def __str__(self):
+    166         "Returns default string."
+--> 167         return self.str_without()  # pylint: disable=no-member
+    168
+    169     def _repr_latex_(self):
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/constraints/single_equation.py in str_without(self, excluded)
+     18         return "%s %s %s" % (try_str_without(self.left, excluded),
+     19                              self.oper,
+---> 20                              try_str_without(self.right, excluded))
+     21
+     22     def latex(self, excluded=("units")):
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/small_scripts.py in try_str_without(item, excluded, latex)
+     35         return item.latex(excluded)
+     36     elif hasattr(item, "str_without"):
+---> 37         return item.str_without(excluded)
+     38     return str(item)
+     39
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/nomials/core.py in str_without(self, excluded)
+     17             return self.key.str_without(excluded) + units  # pylint: disable=no-member
+     18         elif self.ast:
+---> 19             return self.parse_ast(excluded) + units
+     20         else:
+     21             mstrs = []
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in parse_ast(self, excluded)
+     94                 aststr = "%s + %s" % (left, right)
+     95         elif oper == "mul":
+---> 96             left = parenthesize(strify(values[0], excluded), mult=False)
+     97             right = parenthesize(strify(values[1], excluded), mult=False)
+     98             if left == "1":
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in strify(val, excluded)
+     51             val = "%.3g" % val
+     52     else:
+---> 53         val = try_str_without(val, excluded)
+     54     return val
+     55
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/small_scripts.py in try_str_without(item, excluded, latex)
+     35         return item.latex(excluded)
+     36     elif hasattr(item, "str_without"):
+---> 37         return item.str_without(excluded)
+     38     return str(item)
+     39
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/nomials/core.py in str_without(self, excluded)
+     17             return self.key.str_without(excluded) + units  # pylint: disable=no-member
+     18         elif self.ast:
+---> 19             return self.parse_ast(excluded) + units
+     20         else:
+     21             mstrs = []
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in parse_ast(self, excluded)
+     95         elif oper == "mul":
+     96             left = parenthesize(strify(values[0], excluded), mult=False)
+---> 97             right = parenthesize(strify(values[1], excluded), mult=False)
+     98             if left == "1":
+     99                 aststr = right
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in strify(val, excluded)
+     51             val = "%.3g" % val
+     52     else:
+---> 53         val = try_str_without(val, excluded)
+     54     return val
+     55
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/small_scripts.py in try_str_without(item, excluded, latex)
+     35         return item.latex(excluded)
+     36     elif hasattr(item, "str_without"):
+---> 37         return item.str_without(excluded)
+     38     return str(item)
+     39
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/nomials/core.py in str_without(self, excluded)
+     17             return self.key.str_without(excluded) + units  # pylint: disable=no-member
+     18         elif self.ast:
+---> 19             return self.parse_ast(excluded) + units
+     20         else:
+     21             mstrs = []
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in parse_ast(self, excluded)
+    112             aststr = "-%s" % parenthesize(strify(values, excluded), mult=False)
+    113         elif oper == "pow":
+--> 114             left = parenthesize(strify(values[0], excluded))
+    115             x = values[1]
+    116             if left == "1":
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in strify(val, excluded)
+     51             val = "%.3g" % val
+     52     else:
+---> 53         val = try_str_without(val, excluded)
+     54     return val
+     55
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/small_scripts.py in try_str_without(item, excluded, latex)
+     35         return item.latex(excluded)
+     36     elif hasattr(item, "str_without"):
+---> 37         return item.str_without(excluded)
+     38     return str(item)
+     39
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/nomials/core.py in str_without(self, excluded)
+     17             return self.key.str_without(excluded) + units  # pylint: disable=no-member
+     18         elif self.ast:
+---> 19             return self.parse_ast(excluded) + units
+     20         else:
+     21             mstrs = []
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in parse_ast(self, excluded)
+    104         elif oper == "div":
+    105             left = parenthesize(strify(values[0], excluded), mult=False)
+--> 106             right = parenthesize(strify(values[1], excluded))
+    107             if right == "1":
+    108                 aststr = left
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/gpkit/repr_conventions.py in strify(val, excluded)
+     40     "Turns a value into as pretty a string as possible."
+     41     if isinstance(val, Numbers):
+---> 42         if (val > np.pi/12 and val < 100*np.pi       # within bounds?
+     43                 and abs(12*val/np.pi % 1) <= 1e-2):  # nice multiple of PI?
+     44             if val > 3.1:                            # product of PI
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/pint/quantity.py in <lambda>(self, other)
+   1201     __le__ = lambda self, other: self.compare(other, op=operator.le)
+   1202     __ge__ = lambda self, other: self.compare(other, op=operator.ge)
+-> 1203     __gt__ = lambda self, other: self.compare(other, op=operator.gt)
+   1204
+   1205     def __bool__(self):
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/pint/quantity.py in wrapped(self, *args, **kwargs)
+     73         elif isinstance(other, list) and isinstance(other[0], type(self)):
+     74             return NotImplemented
+---> 75         result = f(self, *args, **kwargs)
+     76         return result
+     77     return wrapped
+
+~/Documents/GitHub/AVD_Initial_Sizing/venv/lib/python3.6/site-packages/pint/quantity.py in compare(self, other, op)
+   1188                         raise OffsetUnitCalculusError(self._units)
+   1189             else:
+-> 1190                 raise ValueError('Cannot compare Quantity and {}'.format(type(other)))
+   1191
+   1192         if self._units == other._units:
+
+ValueError: Cannot compare Quantity and <class 'float'>
