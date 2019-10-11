@@ -1,0 +1,16 @@
+quick start:
+
+1) you need python 3.6 (or more) with pip and jupyter installed
+
+2) the 'main.ipynb' jupyter notebook contains the actual implementation.
+Run it by:
+  - opening terminal
+  - (optional) creating/opening a virtual env*
+  - (first time only) run:
+      $ pip install gpkit prettytable numpy
+  -  run:
+      $ jupyter notebook
+  - open the 'main.ipynb' file and run the entire file.
+
+
+the equations used are all listed, and as much as possible ive tried to cite them/note that they were arbitrary. 
