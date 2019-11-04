@@ -1,8 +1,8 @@
 from .Component import Component
 
 class VerticalStabilizer(Component):
-	def __init__(self, x_percentage, sweep, area, aspectRatio):
-		self.x_percentage = x_percentage
-		self.sweep = sweep
-		self.area = area
-		self.aspectRatio = aspectRatio
+	def __init__(self):
+
+		self._loc_x = None
+		self._loc_z = None
+		self._area = None
