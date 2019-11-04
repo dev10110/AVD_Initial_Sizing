@@ -1,11 +1,14 @@
 from .Component import Component
 
+
 class HorizontalStabilizer(Component):
-	def __init__(self, x_percentage, sweep, taperRatio, fuselageDiameter, area, aspectRatio, areaRatio):
-		self.x_percentage = x_percentage
-		self.sweep = sweep
-		self.taperRatio = taperRatio
-		self.fuselageDiameter = fuselageDiameter
-		self.area = area
-		self.aspectRatio = aspectRatio
-		self.areaRatio = areaRatio
+	def __init__(self):
+
+
+		self._loc_x = None
+		self._loc_y = None
+		self._loc_z = None
+		self._sweep = None
+		self._taperRatio = None
+		self._area = None
+		self._aspectRatio = None

@@ -1,7 +1,7 @@
 from .Component import Component
 
 class Nose(Component):
-	def __init__(self, diameter, noseLDRatio):
+	def __init__(self):
 
-		self.diameter = diameter
-		self.noseLDRatio = noseLDRatio
+		self._diameter = None
+		self._noseLDRatio = None
