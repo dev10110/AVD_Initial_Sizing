@@ -1,11 +1,13 @@
-class Wing:
+from .Component import Component
 
-	def __init__(self, x_percentage, engines, sweep, taperRatio, area, aspectRatio, dihedral):
-		self.x_percentage = x_percentage
-		# Must be of type engine that we defined!
-		self.engines = engines
-		self.sweep = sweep
-		self.taperRatio = taperRatio
-		self.area = area
-		self.aspectRatio = aspectRatio
-		self.dihedral = dihedral
+class Wing(Component):
+
+	def __init__(self):
+
+		self._loc_x = None
+		self._loc_z = None
+		self._sweep = None
+		self._taperRatio = None
+		self._area = None
+		self._aspectRatio = None
+		self._dihedral = None

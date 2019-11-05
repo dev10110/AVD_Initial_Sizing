@@ -1,7 +1,7 @@
-class Engine:
-	def __init__(self, root, bypassRatio, designThrust, diameter):
-		# Vector
-		self.root = root
-		self.bypassRatio = bypassRatio
-		self.designThrust = designThrust
-		self.diameter = diameter
+from .Component import Component
+class Engine(Component):
+	def __init__(self):
+
+		self._thrust = None
+
+		pass
