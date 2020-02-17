@@ -3,11 +3,14 @@ import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
 from matplotlib import cm
 import matplotlib as mpl
-from tabulate import tabulate
 import pandas as pd
+import scipy as sp
+from scipy.optimize import NonlinearConstraint, Bounds
+import warnings
 
 
-cmap = cm.get_cmap('RdBu', 100)
+cmap  = cm.get_cmap('RdBu', 100)
+cmap2 = cm.get_cmap('Blues', 100)
 
 
 class Node:
@@ -15,8 +18,6 @@ class Node:
 
         self.x = x
         self.y = y
-
-        self.pos = np.array([x, y])
 
         self.freex = freex
         self.freey = freey
@@ -27,9 +28,13 @@ class Node:
         self.fx = 0
         self.fy = 0
 
+    def pos(self):
+
+        return np.array([self.x, self.y])
+
     def __eq__(self, other):
         # only checks for position, not for whether the boundarys are defined the same
-        return np.allclose(self.pos, other.pos)
+        return np.allclose(self.pos(), other.pos())
 
     def __hash__(self):
         return hash((self.x, self.y))
@@ -60,7 +65,7 @@ class Node:
 
 class Bar:
 
-    def __init__(self, node0, node1, w=5e-3, t=6.35e-3, E=71e9):
+    def __init__(self, node0, node1, w=5e-3, t=6.35e-3, E=71e9, yield_strength=300e6, density=2700):
 
         if node0 == node1:
             raise ValueError(
@@ -71,20 +76,8 @@ class Bar:
         self.w = w
         self.t = t
         self.E = E
-
-        # get bar length
-        self.length = l = self._length(node0, node1)
-
-        # define the angle of the bar
-        self.theta = th = self._theta(node0, node1)
-
-        # def e vector
-        self.e = e = np.array([np.cos(th), np.sin(th)])
-
-        self.eeT = eeT = np.outer(e, e)
-
-        self.nom_stiff = (1/l)*np.block([[eeT, -eeT], [-eeT, eeT]])
-        # note the actual stiffness matrix = nomStiff*(EA)
+        self.yield_strength = yield_strength
+        self.density = density
 
     def __eq__(self, other):
         # only checks if the same nodes are used, not for material or thicknesses.
@@ -112,20 +105,27 @@ class Bar:
     def __repr__(self):
         return f'B({self.node0}, {self.node1})'
 
-    def plot(self, color='k', def_scale=1.0):
-        nodes = [self.node0, self.node1]
+    def length(self):
+        """Get length of vector between n0 and n1"""
 
-        x = [n.x for n in nodes]
-        y = [n.y for n in nodes]
+        v = self.node1.pos() - self.node0.pos()
 
-        xdx = [n.x+def_scale*n.dx for n in nodes]
-        ydy = [n.y+def_scale*n.dy for n in nodes]
+        return np.sqrt(np.dot(v, v))
 
-        plt.plot(x, y, '0.8')
-        plt.plot(xdx, ydy, color=color)
+    def e(self): # def e vector
+        th = self.theta()
+        return np.array([np.cos(th), np.sin(th)])
 
     def area(self):
         return self.w * self.t
+
+    def volume(self):
+
+        return self.area()*self.length()
+
+    def mass(self):
+
+        return self.volume()*self.density
 
     def I(self):
 
@@ -140,46 +140,36 @@ class Bar:
         return self.E * self.area()
 
     def stiffness(self):
-        return self.EA() * self.nom_stiff
 
-    def _theta(self, n0, n1):
+        eeT = np.outer(self.e(), self.e())
+
+        return (self.EA()/self.length())*np.block([[eeT, -eeT], [-eeT, eeT]])
+
+    def theta(self):
         """Get angle of vector from n0 to n1"""
 
-        v = n1.pos - n0.pos
+        v = self.node1.pos() - self.node0.pos()
 
         return np.arctan2(v[1], v[0])
-
-    def _length(self, n0, n1):
-        """Get length of vector between n0 and n1"""
-
-        v = n1.pos - n0.pos
-
-        return np.sqrt(np.dot(v, v))
 
     def extension(self):
 
         du1 = np.array([self.node0.dx, self.node0.dy])
         du2 = np.array([self.node1.dx, self.node1.dy])
 
-        delta = np.dot((du2-du1), self.e)
-
-        return delta
+        return np.dot((du2-du1), self.e())
 
     def strain(self):
 
         delta = self.extension()
 
-        strain = delta/self.length
-
-        return strain
+        return delta/self.length()
 
     def stress(self):
 
         strain = self.strain()
 
-        sigma = self.E * strain
-
-        return sigma
+        return self.E * strain
 
     def tension(self):
 
@@ -187,7 +177,7 @@ class Bar:
 
     def buckling_load(self):
 
-        Fcrit = np.pi**2*self.E*self.I()/self.length**2
+        Fcrit = np.pi**2*self.E*self.I()/self.length()**2
 
         return Fcrit
 
@@ -201,18 +191,37 @@ class Bar:
         else:
             return False
 
+    def qYield(self):
+
+        if self.stress() <= 0.0:
+            return False
+        if self.stress() > self.yield_strength:
+            return True
+        else:
+            return False
+
+
+    def plot(self, color='k', def_scale=1.0):
+        nodes = [self.node0, self.node1]
+
+        x = [n.x for n in nodes]
+        y = [n.y for n in nodes]
+
+        xdx = [n.x + def_scale*n.dx for n in nodes]
+        ydy = [n.y + def_scale*n.dy for n in nodes]
+
+        plt.plot(x, y, '0.8')
+        plt.plot(xdx, ydy, color=color)
 
 class Truss:
     def __init__(self, bars):
         """Class to define a truss"""
 
-        # remove duplicated bars by
+        # remove duplicated bars
         self.bars = list(set(bars))
 
         # extract nodes
         self.nodes = self.extract_nodes(bars)
-
-        self.defTruss = None
 
     @classmethod
     def from_delaunay(cls, nodes):
@@ -221,7 +230,7 @@ class Truss:
             set(indx for simplex in triang.simplices if x in simplex for indx in simplex if indx != x))
 
         # create numpy nodes array
-        node_points = np.array([[n.x, n.y] for n in nodes])
+        node_points = np.vstack([n.pos() for n in nodes])
 
         # perform the triangulation
         d = Delaunay(node_points)
@@ -234,6 +243,7 @@ class Truss:
             for n in neighbors:
                 bars.extend([Bar(node, nodes[n]) for n in neighbors])
 
+        # note, there will be repeated bars here, but the clean up when creating the bars will fix this issue.
         return cls(bars)
 
     @classmethod
@@ -257,11 +267,8 @@ class Truss:
 
         stiffness = np.zeros([2*len(nodes), 2*len(nodes)])
 
-        #print(f'Nodes: {nodes}')
-
         for bar in self.bars:
-            # print(bar)
-            # find the n0 index, n1 index
+
             n0ind = nodes.index(bar.node0)
             n1ind = nodes.index(bar.node1)
 
@@ -328,15 +335,64 @@ class Truss:
         # does not return anything
         return None
 
-    def plot(self, ax=None, def_scale=1.0):
+    def plot(self,def_scale=1.0, figsize=(12, 5)):
+
+        plt.figure(figsize=figsize)
+
+        plt.subplot(121)
+
+        self.plot_tensions(def_scale=def_scale)
+
+        plt.subplot(122)
+
+        self.plot_stress(def_scale=def_scale)
+
+
+    def plot_tensions(self, ax=None, def_scale=1.0):
+
+        if ax is None:
+            ax = plt.gca()
+
+        # create a symmetric stress bar
+        Trange = max(abs(b.tension()) for b in self.bars)
+
+        # plot all bars
+        for bar in self.bars:
+
+            if Trange < 0.1:
+                c = '0.8'
+            else:
+                c = cmap((bar.tension()+Trange)/(2*Trange))
+
+            bar.plot(color=c,def_scale=def_scale)
+        for node in self.nodes:
+            node.plot()
+
+        self.plot_force_quiver(ax)
+
+        # finally put in the colorbar:
+        (cax, kw) = mpl.colorbar.make_axes(ax)
+        norm = mpl.colors.Normalize(vmin=-Trange, vmax=+Trange)
+        cb = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm)
+        cb.set_label('Bar Tensions (N)')
+
+    def plot_force_quiver(self, ax):
+
+        # plot the arrows
+        x = [n.x for n in self.nodes if not (n.fx == 0 and n.fy == 0)]
+        y = [n.y for n in self.nodes if not (n.fx == 0 and n.fy == 0)]
+        fx = [n.fx for n in self.nodes if not (n.fx == 0 and n.fy == 0)]
+        fy = [n.fy for n in self.nodes if not (n.fx == 0 and n.fy == 0)]
+
+        ax.quiver(x, y, fx, fy, color='red',zorder=10)
+
+    def plot_stress(self, ax=None, def_scale=1.0):
 
         if ax is None:
             ax = plt.gca()
 
         # create a symmetric stress bar
         Srange = max(abs(b.stress()) for b in self.bars)
-
-
 
         # plot all bars
         for bar in self.bars:
@@ -351,12 +407,7 @@ class Truss:
             node.plot()
 
         # plot the arrows
-        x = [n.x for n in self.nodes if not (n.fx == 0 and n.fy == 0)]
-        y = [n.y for n in self.nodes if not (n.fx == 0 and n.fy == 0)]
-        fx = [n.fx for n in self.nodes if not (n.fx == 0 and n.fy == 0)]
-        fy = [n.fy for n in self.nodes if not (n.fx == 0 and n.fy == 0)]
-
-        plt.quiver(x, y, fx, fy, color='red')
+        self.plot_force_quiver(ax)
 
 
         # finally put in the colorbar:
@@ -365,21 +416,54 @@ class Truss:
         cb = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm)
         cb.set_label('Bar Stress (Pa)')
 
+
+
+    def plot_widths(self, ax=None, def_scale=1.0):
+
+        if ax is None:
+            ax = plt.gca()
+
+        # create a symmetric stress bar
+        Wrange = 1000*max(b.w for b in self.bars)
+
+        # plot all bars
+        for bar in self.bars:
+
+            if Wrange < 0.01e-3:
+                c = '0.95'
+            else:
+                c = cmap2(bar.w*1000/Wrange)
+
+            bar.plot(color=c,def_scale=def_scale)
+        for node in self.nodes:
+            node.plot()
+
+        # plot the arrows
+        self.plot_force_quiver(ax)
+
+
+        # finally put in the colorbar:
+        (cax, kw) = mpl.colorbar.make_axes(ax)
+        norm = mpl.colors.Normalize(vmin=0, vmax=Wrange)
+        cb = mpl.colorbar.ColorbarBase(cax, cmap=cmap2, norm=norm)
+        cb.set_label('Bar Width (mm)')
+
+
     def details(self):
 
         # details on each node:
         # node num | x | y | freex? | freey? | fx | fy || dx | dy |
 
-        node_head = ["ID", "x (m)", "y (m)", "Free x?", "Free y?", "Force x (N)", "Force y (N)", "Delta x (m)", "Delta y (m)"]
+        node_head = ["ID", "x (m)", "y (m)", "Free x?", "Free y?", "Force x (N)", "Force y (N)", "Delta x (mm)", "Delta y (mm)"]
 
-        node_deets = [[i, n.x, n.y, n.freex, n.freey, n.fx, n.fy, n.dx, n.dy] for i, n in enumerate(self.nodes)]
+        node_deets = [[i, n.x, n.y, n.freex, n.freey, n.fx, n.fy, n.dx*1000, n.dy*1000] for i, n in enumerate(self.nodes)]
 
         # details for each bar:
         # bar num | node0num (x,y) | node1num (x,y)| E | w | t | L || T | ext | stress | strain
 
-        bar_head = ["ID", "Node 0","Node 1", "E (GPa)",  "w (mm)", "t (mm)", "A (mm2)", "I (mm4)", "L (m)", "Buckling Load (N)", "T (N)", "ext (mm)", "Stress (Pa)", "Strain ()", "Will buckle?"]
+        bar_head = ["ID", "Node 0","Node 1", "E (GPa)",  "Yield (MPa)", "w (mm)", "t (mm)", "A (mm2)", "I (mm4)", "L (m)", "m (kg)", "Buckling Load (N)", "T (N)", "ext (mm)", "Stress (MPa)", "Strain", "Will buckle?", "Will yield?", "Buckle Margin", "Yield Margin"]
 
-        bar_deets = [[i, b.node0, b.node1, b.E/10**9, b.w*1000, b.t*1000, b.area()*10**6, b.I()*10**12, b.length, b.buckling_load(), b.tension(), b.extension()*1000, b.stress(), b.strain(), b.qBuckle()] for i, b in enumerate(self.bars)]
+        bar_deets = [[i, b.node0, b.node1, b.E/10**9, b.yield_strength/10**6, b.w*1000, b.t*1000, b.area()*10**6, b.I()*10**12, b.length(), b.mass(), b.buckling_load(), b.tension(), b.extension()*1000, b.stress()/10**6, b.strain(), b.qBuckle(), b.qYield(), -min(b.buckling_load()/b.tension(), 0), b.yield_strength/b.stress()] for i, b in enumerate(self.bars)]
 
         df_nodes = pd.DataFrame(node_deets, columns=node_head)
 
@@ -388,9 +472,9 @@ class Truss:
         return df_nodes, df_bars
 
 
-    def volume(self):
+    def mass(self):
 
-        return sum(bar.area()*bar.length for bar in self.bars)
+        return sum(bar.mass() for bar in self.bars)
 
 
     def extract_nodes(self, bars):
@@ -408,3 +492,84 @@ class Truss:
 
     def extensions(self):
         return [bar.extension() for bar in self.bars]
+
+    def set_widths(self, widths):
+
+        for i, bar in enumerate(self.bars):
+            bar.w = widths[i]
+
+    def set_all_widths(self, width):
+        for b in self.bars:
+            b.w = width
+
+
+    def miminize_mass(self, deflection_constraints=None, extra_constraints=None, buckling_SF=1.5, yield_SF=1.5, keep_feasible=False, method='SLSQP', **kwargs):
+
+        def f_objective(widths):
+
+            self.set_widths(widths)
+
+            return self.mass()
+
+
+        def f_deflection_con(widths):
+
+            self.set_widths(widths)
+
+            self.solve()
+
+            con = []
+
+            for defl in deflection_constraints:
+                node, dx_min, dx_max, dy_min, dy_max = defl
+
+                if dx_min is not None:
+                    con.append(node.dx - dx_min)
+                if dx_max is not None:
+                    con.append(dx_max - node.dx)
+                if dy_min is not None:
+                    con.append(node.dy - dy_min)
+                if dy_max is not None:
+                    con.append(dy_max - node.dy)
+
+            return con
+
+        def f_buckling_con(widths):
+            self.set_widths(widths)
+
+            self.solve()
+
+            return [buckling_SF*bar.tension() + bar.buckling_load() for bar in self.bars]
+
+        def f_yield_con(widths):
+            self.set_widths(widths)
+
+            self.solve()
+
+            return [bar.yield_strength - yield_SF*bar.stress() for bar in self.bars]
+
+        buckling_constraint = NonlinearConstraint(f_buckling_con, lb=0, ub=np.inf, keep_feasible=keep_feasible)
+        yield_constraint = NonlinearConstraint(f_yield_con, lb=0, ub=np.inf, keep_feasible=keep_feasible)
+        constraints = [buckling_constraint, yield_constraint]
+
+
+        if deflection_constraints is not None:
+            deflection_constraint = NonlinearConstraint(f_deflection_con, lb=0, ub=np.inf, keep_feasible=keep_feasible)
+            constraints.append(deflection_constraint)
+
+        if extra_constraints is not None:
+            constraints.extend(extra_constraints)
+
+        minW = 0.1e-3;
+        maxW = 20e-3;
+
+        widths0 = [bar.w for bar in self.bars]
+
+        bounds = Bounds(minW, maxW, keep_feasible=keep_feasible)
+
+        sol = sp.optimize.minimize(f_objective, x0=widths0, bounds=bounds, constraints=constraints, method=method, **kwargs)
+
+        if not sol.success:
+            warnings.warn("Optimization hasn't been successful! Please check!")
+
+        return sol
